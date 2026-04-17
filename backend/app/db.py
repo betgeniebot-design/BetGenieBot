@@ -1,12 +1,14 @@
 import os
 from pymongo import MongoClient
 
-# Get the full MongoDB URI from environment variables
 MONGO_URI = os.getenv("MONGO_URI")
 
-# Create MongoDB client
-client = MongoClient(MONGO_URI)
+if not MONGO_URI:
+    raise ValueError("MONGO_URI environment variable is not set")
 
-# Select the correct database (BetgenieBot) and collection (users)
-db = client["BetgenieBot"]   # or client.BetgenieBot
-users = db["users"]          # or db.users
+client = MongoClient(MONGO_URI)
+db = client["BetgenieBot"]
+users = db["users"]
+
+# Create an index on telegram_id for faster lookups
+users.create_index("telegram_id", unique=True)

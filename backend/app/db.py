@@ -9,6 +9,3 @@ if not MONGO_URI:
 client = MongoClient(MONGO_URI)
 db = client["BetgenieBot"]
 users = db["users"]
-
-# Create an index on telegram_id for faster lookups
-users.create_index("telegram_id", unique=True)

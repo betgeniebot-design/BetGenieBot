@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import CommandHandler
 from app.bot import build_bot
 from app.auth import router
+from app.db import users
 import os
 
 ptb_app = build_bot()
@@ -19,6 +20,13 @@ ptb_app.add_handler(CommandHandler("start", start))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create index on startup (but handle error gracefully)
+    try:
+        users.create_index("telegram_id", unique=True)
+        print("MongoDB index created/verified")
+    except Exception as e:
+        print(f"Note: Index creation issue (non-critical): {e}")
+                                                        
     await ptb_app.initialize()
     await ptb_app.start()
     print("Bot is ready and running!")
@@ -28,7 +36,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Add CORS middleware to allow requests from your frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
-from bot import build_bot
-from auth import router
+from app.bot import build_bot
+from app.auth import router
 
 app= FastAPI()
 bot= build_bot()

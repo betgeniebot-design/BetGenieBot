@@ -1,12 +1,19 @@
 from fastapi import FastAPI, Request
-from app.bot import build_bot
+from app.bot import create_application
+from telegram import Update
 from app.auth import router
 
 app= FastAPI()
-bot= build_bot()
+telegram_app= create_application()
 app.include_router(router)
 
+@app.on_event("startup")
+async def startup():
+    await telegram_app.initialize()
+
 @app.post("/webhook")
-async def webhook(req: Request):
-    await bot.process_update(await req.json())
+async def telegram_webhook(request: Request):
+    data= await request.json()
+    update= Update.de_json(data, telegram_app.bot)
+    await telegram_bot.process_update(update)
     return {"ok": True}

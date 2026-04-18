@@ -1,7 +1,6 @@
 import os
-from pymongo import MongoClient
 import logging
-import sys
+from pymongo import MongoClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,33 +11,39 @@ if not MONGO_URI:
     logger.error("MONGO_URI environment variable is not set")
     raise ValueError("MONGO_URI environment variable is not set")
 
-logger.info(f"Attempting to connect to MongoDB (URI starts with: {MONGO_URI[:20]}...)")
+# FORCE remove SSL from URI
+MONGO_URI = MONGO_URI.replace('ssl=true', 'ssl=false')
+MONGO_URI = MONGO_URI.replace('tls=true', 'tls=false')
+MONGO_URI = MONGO_URI.replace('mongodb+srv://', 'mongodb://')
 
-# Force MongoDB connection with SSL disabled
+# Add directConnection to avoid replica set issues
+if 'directConnection=true' not in MONGO_URI:
+    if '?' in MONGO_URI:
+        MONGO_URI += '&directConnection=true'
+    else:
+        MONGO_URI += '?directConnection=true'
+
+logger.info(f"Connecting with SSL disabled (URI masked: {MONGO_URI[:60]}...)")
+
+# Connect WITHOUT any SSL parameters
 try:
     client = MongoClient(
-    MONGO_URI,
-    tls=True,
-    tlsAllowInvalidCertificates=True,  # Bypass SSL certificate validation
-    tlsAllowInvalidHostnames=True,      # Bypass hostname validation
-    serverSelectionTimeoutMS=10000      # 10 second timeout
+        MONGO_URI,
+        ssl=False,  # CRITICAL: Disable SSL
+        tls=False,  # CRITICAL: Disable TLS
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000
     )
-                                                            
-    # Test the connection
+    
+    # Force a connection test
     client.admin.command('ping')
     logger.info("✅ MongoDB connected successfully!")
-                                                                            
+    
+    db = client["BetgenieBot"]
+    users = db["users"]
+    logger.info("✅ Database and collection ready")
+    
 except Exception as e:
     logger.error(f"❌ MongoDB connection failed: {e}")
-    logger.warning("App will continue but database features won't work")
-    # Still create the client - it will retry on each operation
-    client = MongoClient(
-        MONGO_URI,
-        tls=True,
-        tlsAllowInvalidCertificates=True,
-        tlsAllowInvalidHostnames=True,
-        serverSelectionTimeoutMS=10000
-    )
-db = client["BetgenieBot"]
-users = db["users"]
-logger.info("Database and collection objects created")
+    logger.error("Please check your MONGO_URI environment variable")
+    raise

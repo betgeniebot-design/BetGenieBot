@@ -39,6 +39,6 @@ except Exception as e:
         tlsAllowInvalidHostnames=True,
         serverSelectionTimeoutMS=10000
     )
-# Creadb = client["BetgenieBot"]
+db = client["BetgenieBot"]
 users = db["users"]
 logger.info("Database and collection objects created")

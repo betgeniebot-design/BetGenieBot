@@ -1,13 +1,235 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Telegram Web App</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tap Tax</title>
+    <style>
+        * {
+            user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background: linear-gradient(135deg, #1e2a3a, #0f1724);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        .score-box {
+            background: rgba(0,0,0,0.6);
+            border-radius: 60px;
+            padding: 20px 40px;
+            margin: 20px;
+        }
+        .score {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #ffd966;
+            text-shadow: 0 0 10px #ff9900;
+        }
+        .tap-btn {
+            background: #f39c12;
+            border: none;
+            font-size: 3rem;
+            font-weight: bold;
+            padding: 20px 50px;
+            border-radius: 80px;
+            box-shadow: 0 10px 0 #b45f06;
+            cursor: pointer;
+            transition: 0.05s linear;
+            margin: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+        .tap-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 6px 0 #b45f06;
+        }
+        .energy {
+            font-size: 1.2rem;
+            background: #2c3e50;
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 40px;
+            margin: 10px;
+        }
+        .ad-btn {
+            background: #e67e22;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            color: white;
+            font-weight: bold;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .refer-link {
+            background: #1f3a3f;
+            padding: 12px;
+            border-radius: 20px;
+            margin-top: 30px;
+            word-break: break-all;
+            font-size: 0.8rem;
+        }
+        button {
+            font-family: inherit;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+    </style>
 </head>
 <body>
-    <h2>Welcome to the App</h2>
-    <p>Checking login...</p>
-    <script src="app.js"></script>
+<div class="container">
+    <div class="score-box">
+        <div style="font-size: 1rem;">💰 YOUR TAX 💰</div>
+        <div class="score" id="scoreDisplay">0</div>
+    </div>
+
+    <button class="tap-btn" id="tapButton">👆 TAP</button>
+
+    <div class="energy" id="energyDisplay">⚡ 10/10 taps left</div>
+    <button class="ad-btn" id="adButton">📺 Watch Ad (+50 taps)</button>
+
+    <div class="refer-link">
+        🔗 Your referral link:<br>
+        <span id="referralLinkText">loading...</span><br>
+        <small>Send to friends → each install gives you +1000 taps</small>
+    </div>
+    <div class="footer">
+        🔥 Token season soon: Taps = future airdrop
+    </div>
+</div>
+
+<script>
+    // ---------- STATE ----------
+    let totalTaps = 0;          // lifetime taps (score)
+    let currentEnergy = 10;     // taps left this minute
+    let lastRefillTime = Date.now();
+    let userId = null;
+    let referrerId = null;
+
+    // ---------- HELPERS ----------
+    function saveToLocal() {
+        localStorage.setItem('totalTaps', totalTaps);
+        localStorage.setItem('currentEnergy', currentEnergy);
+        localStorage.setItem('lastRefillTime', lastRefillTime);
+    }
+
+    function loadFromLocal() {
+        totalTaps = parseInt(localStorage.getItem('totalTaps')) || 0;
+        currentEnergy = parseInt(localStorage.getItem('currentEnergy')) || 10;
+        lastRefillTime = parseInt(localStorage.getItem('lastRefillTime')) || Date.now();
+    }
+
+    // Refill energy every minute (max 10)
+    function refillEnergy() {
+        const now = Date.now();
+        const minutesPassed = Math.floor((now - lastRefillTime) / 60000);
+        if (minutesPassed >= 1) {
+            currentEnergy = Math.min(10, currentEnergy + minutesPassed);
+            if (currentEnergy > 10) currentEnergy = 10;
+            lastRefillTime = now;
+            saveToLocal();
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('scoreDisplay').innerText = totalTaps;
+        document.getElementById('energyDisplay').innerHTML = `⚡ ${currentEnergy}/10 taps left`;
+        if (currentEnergy <= 0) {
+            document.getElementById('tapButton').style.opacity = '0.5';
+        } else {
+            document.getElementById('tapButton').style.opacity = '1';
+        }
+    }
+
+    // Tap action
+    function handleTap() {
+        refillEnergy();
+        if (currentEnergy <= 0) {
+            alert("⛔ No energy! Watch an ad or wait 1 min.");
+            return;
+        }
+        currentEnergy--;
+        totalTaps++;
+        saveToLocal();
+        updateUI();
+
+        // Tell Telegram the score changed (for potential leaderboard later)
+        if (window.TelegramWebApp) {
+            window.TelegramWebApp.MainButton.setText(`Taps: ${totalTaps}`);
+        }
+    }
+
+    // Mock ad watch (replace with real ad network later)
+    function watchAd() {
+        // In real scenario: show Interstitial Ad
+        // For now, simulate
+        alert("📺 Ad watched! +50 energy.");
+        currentEnergy = Math.min(10, currentEnergy + 50);
+        saveToLocal();
+        updateUI();
+    }
+
+    // Referral logic: get from URL param ?start=REFERRER_ID
+    function initReferral() {
+        let tg = window.TelegramWebApp;
+        let startParam = tg?.initDataUnsafe?.start_param || null;
+        
+        if (startParam && !localStorage.getItem('referrerProcessed')) {
+            referrerId = startParam;
+            localStorage.setItem('referrerProcessed', 'yes');
+            // Give +1000 taps to referrer (you'd call an API in real version)
+            alert(`🎉 Referred by user ${referrerId}! +1000 taps to your referrer.`);
+            // In real backend: fetch /api/referral?from=userId&to=referrerId
+        }
+
+        // Build user's own referral link
+        const botUsername = "TapTaxBot"; // CHANGE TO YOUR BOT USERNAME
+        const myId = tg?.initDataUnsafe?.user?.id || Math.floor(Math.random() * 1000000);
+        const link = `https://t.me/${botUsername}?start=${myId}`;
+        document.getElementById('referralLinkText').innerText = link;
+    }
+
+    // ---------- TELEGRAM INIT ----------
+    function initTelegram() {
+        const tg = window.TelegramWebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand(); // fullscreen mode
+            tg.MainButton.setText(`Taps: 0`);
+            tg.MainButton.show();
+            userId = tg.initDataUnsafe?.user?.id || 'anon';
+        } else {
+            // Fallback for testing outside Telegram
+            userId = 'web_' + Math.floor(Math.random() * 999999);
+        }
+        initReferral();
+    }
+
+    // ---------- MAIN ----------
+    loadFromLocal();
+    updateUI();
+    setInterval(() => {
+        refillEnergy();
+    }, 10000); // check every 10 seconds
+
+    document.getElementById('tapButton').addEventListener('click', handleTap);
+    document.getElementById('adButton').addEventListener('click', watchAd);
+    initTelegram();
+</script>
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 </body>
 </html>
